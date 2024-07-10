@@ -22,7 +22,7 @@ const server = express();
 server.use(cookieParser());
 server.use(
     cors({
-        orgin: 'http://localhost:8000',
+        origin: 'http://localhost:8000',
         credentials: true
     })
 );
@@ -94,7 +94,7 @@ server.post('/login', async (req, res) => {
 // 3. Logout a user 
 
 server.post('/logout', (req, res) => {
-    res.clearCookie('refreshtoken');
+    res.clearCookie('refreshtoken', {path : '/refresh_token'});
     return res.send({
         message: 'Logged out',
     })
@@ -120,4 +120,37 @@ server.post('/protected', async (req, res) => {
 
 server.listen(process.env.PORT, () => {
     console.log(`Server listening on PORT: ${process.env.PORT}`)
+});
+
+
+// 5. Get a new access token with a refresh token
+server.post('/refresh_token', (req, res) => {
+    const token = req.cookies.refreshtoken;
+    // if we don't have a token in our request
+    if (!token) return res.send({accesstoken: ''});
+    // we have a token, let's verify it
+    let payload = null;
+    try {
+        payload = verify(token, process.env.REFRESH_TOKEN_SECRET);
+
+    } catch (error) {
+        return res.send({accesstoken: ''});
+    }
+    // Token is valid, check if user exist
+    const user = fakeDB.find(user => user.id === payload.userId);
+    if (!user) return res.send({accesstoken: ''});
+    // User exist, check if refreshtoken exist on user
+    if (user.refreshtoken !== token) {
+        return res.send({accesstoken: ''});
+
+    } 
+    // Token exist, create new refresh and accesstoken\
+    const accesstoken = createAccessToken(user.id);
+    const refreshtoken = createRefreshToken(user.id);
+    user.refreshtoken = refreshtoken;
+    // All good to go, send new refreshtoken and accesstoken
+    sendRefreshToken(res, refreshtoken);
+    return res.send({accesstoken});
+
+
 })
