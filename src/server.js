@@ -2,12 +2,13 @@ require('dotenv/config');
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
-const { verifyu } = require('jsonwebtoken');
+const { verify } = require('jsonwebtoken');
 const { hash, compare } = require('bcryptjs');
-const {createAcessToken, createRefreshToken } = require('./tokens.js')
+const {createAccessToken, createRefreshToken, sendAccessToken, sendRefreshToken } = require('./tokens.js')
+
 
 const { fakeDB } = require('./fakeDB.js');
-
+const {isAuth} = require('./isAuth.js');
 
 // 1. Register a user
 // 2. Login a user
@@ -73,14 +74,49 @@ server.post('/login', async (req, res) => {
         const valid = await compare(password, user.password);
         if (!valid) throw new Error("Password not correct");
         // 3. Create Refrsh and Accesstoken
-        const accesstoken = createAcessToken(user.id);
+        const accesstoken = createAccessToken(user.id);
         const refreshtoken = createRefreshToken(user.id);
-
+        // 4. Put the refreshtoken in the database
+        user.refreshtoken = refreshtoken;
+        
+        // 5 Send token refreshtoken as a cookie and accesstoken as a regular response
+        sendRefreshToken(res, refreshtoken);
+        sendAccessToken(res, req, accesstoken);
+        console.log(fakeDB)
 
     } catch (err) {
-        
+        res.send({
+            error: `${err.message}`,
+        })
     }
 })
+
+// 3. Logout a user 
+
+server.post('/logout', (req, res) => {
+    res.clearCookie('refreshtoken');
+    return res.send({
+        message: 'Logged out',
+    })
+});
+
+// 4 Protected route
+
+server.post('/protected'), async (req, res) => {
+    try {
+        const userId = isAuth(req);
+        if (userId !== null) {
+            res.send({
+                data: 'This is protected data.',
+            })
+        }
+    } catch (err) {
+        res.send({
+            error: `${err.message}`
+        })
+        
+    }
+}
 
 server.listen(process.env.PORT, () => {
     console.log(`Server listening on PORT: ${process.env.PORT}`)
