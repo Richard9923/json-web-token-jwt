@@ -38,7 +38,7 @@ server.post('/register', async (req, res) => {
 
     try {
         // 1. Check if user exist
-        
+         
         const user = fakeDB.find(user => user.email === email);
         if (user) throw new Error("User already exist");
         // 2 if not user exist, hash the password
