@@ -4,6 +4,7 @@ const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const { verifyu } = require('jsonwebtoken');
 const { hash, compare } = require('bcryptjs');
+const {createAcessToken, createRefreshToken } = require('./tokens.js')
 
 const { fakeDB } = require('./fakeDB.js');
 
@@ -29,9 +30,6 @@ server.use(
 server.use(express.json()); // to support JSON-encoded bodies
 server.use(express.urlencoded({extended: true})); // Support URL-encoded bodies
 
-server.listen(process.env.PORT, () => {
-    console.log(`Server listening on PORT: ${process.env.PORT}`)
-})
 
 // 1. Register a user 
 server.post('/register', async (req, res) => {
@@ -60,4 +58,30 @@ server.post('/register', async (req, res) => {
             error: `${err.message}`,
         })
     }
+})
+
+// 2. Login a user
+server.post('/login', async (req, res) => {
+    const { email, password } = req.body;
+
+    try {
+        
+        // 1. Find user in database. If not exist send error
+        const user = fakeDB.find(user => user.email === email);
+        if (!user) throw new Error("User does not exist");
+        // 2 Compare crypted password and see if it checks out. Send error if not
+        const valid = await compare(password, user.password);
+        if (!valid) throw new Error("Password not correct");
+        // 3. Create Refrsh and Accesstoken
+        const accesstoken = createAcessToken(user.id);
+        const refreshtoken = createRefreshToken(user.id);
+
+
+    } catch (err) {
+        
+    }
+})
+
+server.listen(process.env.PORT, () => {
+    console.log(`Server listening on PORT: ${process.env.PORT}`)
 })
